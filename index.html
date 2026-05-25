@@ -432,7 +432,6 @@ tr.sel td{background:var(--bluel);}
     <div class="fc-card-title">Forecast per Area</div>
     <div class="fc-card-sub">Aktual vs Proyeksi akhir bulan</div>
     <div class="fc-area-grid" id="fcAreaCards"></div>
-    <div class="fc-note" id="fcNote">💡 Asumsi: laju penjualan harian konstan berdasarkan rata-rata 1–18 Mei · 9 sisa hari kerja</div>
   </div>
   <div class="fc-card">
     <div class="fc-card-title">Forecast Sales Chart</div>
@@ -895,7 +894,7 @@ function getFcCat(){return FC_CAT[S.area]||FC_CAT['all'];}
 
 function renderForecast(){
   const show = S.month==='all'||S.month===CURRENT_MONTH;
-  ['fcSec','fcBanner','fcNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=show?'':'none';});
+  ['fcSec','fcBanner'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=show?'':'none';});
   const fcGrid=document.querySelector('.fc-grid');if(fcGrid)fcGrid.style.display=show?'':'none';
   const fcCatCard=document.querySelector('#fcCatBars')?.closest('.fc-card');if(fcCatCard)fcCatCard.style.display=show?'':'none';
   if(!show)return;
