@@ -609,10 +609,10 @@ function detectColumns(cols) {
     if (label === 'harga_jual_total')   map.sales = i;
     if (label === 'margin')             map.margin = i;
     if (label === 'if_days')            map.avgIF = i;
-    if (label === 'quantity_done')      map.ifDone = i;
+    if (label === 'refference')         map.ifDone = i;
     // fallbacks
     if (label === 'contact' && map.customer === undefined) map.customer = i;
-    if (label === 'refference')         map.refference = i;
+    if (label === 'quantity_done')      map.qtyDone = i;
     if (label === 'status')             map.status = i;
   });
   console.log('Column map:', map);
@@ -678,9 +678,9 @@ function parseRows(data) {
     const sales = Number(get(map.sales)) || 0;
     const margin = Number(get(map.margin)) || 0;
     const avgIFVal = Number(get(map.avgIF)) || 0;
-    const ifDone = Number(get(map.ifDone)) || 1;
+    const ref = (get(map.ifDone) || '').toString().trim();
 
-    rows.push({ monthKey, dayNum, area, category, salesperson, customer, sales, margin, avgIF: avgIFVal, ifDone });
+    rows.push({ monthKey, dayNum, area, category, salesperson, customer, sales, margin, avgIF: avgIFVal, ref });
   }
 
   return rows;
@@ -714,7 +714,7 @@ function aggregateData(rows) {
     const filtered = filterRows(m, areaFilter);
     const sales = filtered.reduce((s,r) => s+r.sales, 0);
     const margin = filtered.reduce((s,r) => s+r.margin, 0);
-    const orders = filtered.reduce((s,r) => s+r.ifDone, 0);
+    const orders = new Set(filtered.map(r=>r.ref).filter(Boolean)).size;
     const ifRows = filtered.filter(r => r.avgIF > 0);
     const avgIF = ifRows.length ? ifRows.reduce((s,r)=>s+r.avgIF,0)/ifRows.length : 0;
     return { month: m, sales, margin, orders, avgIF: parseFloat(avgIF.toFixed(2)) };
@@ -748,14 +748,15 @@ function aggregateData(rows) {
         if (!catMap[r.category]) catMap[r.category] = {name:r.category, sales:0, margin:0, qty:0, ifDone:0, _ifSum:0, _ifCnt:0};
         catMap[r.category].sales += r.sales;
         catMap[r.category].margin += r.margin;
-        catMap[r.category].qty += r.ifDone;
-        catMap[r.category].ifDone += r.ifDone;
+        catMap[r.category].qty += 1;
+        if (!catMap[r.category]._refs) catMap[r.category]._refs = new Set();
+        catMap[r.category]._refs.add(r.ref);
         if (r.avgIF > 0) { catMap[r.category]._ifSum += r.avgIF; catMap[r.category]._ifCnt++; }
       });
       cat[key] = Object.values(catMap).map(c => ({
         name: c.name, sales: c.sales, margin: c.margin,
         pct: c.sales > 0 ? parseFloat((c.margin/c.sales*100).toFixed(2)) : 0,
-        qty: c.qty, ifDone: c.ifDone,
+        qty: c.qty, ifDone: c._refs ? c._refs.size : 0,
         avgIF: c._ifCnt > 0 ? parseFloat((c._ifSum/c._ifCnt).toFixed(2)) : 0
       })).sort((a,b) => b.sales-a.sales).slice(0, 12);
     });
@@ -772,9 +773,10 @@ function aggregateData(rows) {
         if (!spMap[r.salesperson]) spMap[r.salesperson] = {name:r.salesperson, sales:0, margin:0, orders:0, area:r.area};
         spMap[r.salesperson].sales += r.sales;
         spMap[r.salesperson].margin += r.margin;
-        spMap[r.salesperson].orders += r.ifDone;
+        if (!spMap[r.salesperson]._refs) spMap[r.salesperson]._refs = new Set();
+        spMap[r.salesperson]._refs.add(r.ref);
       });
-      sp[key] = Object.values(spMap).sort((a,b) => b.sales-a.sales).slice(0, 12);
+      sp[key] = Object.values(spMap).map(s=>({...s, orders: s._refs ? s._refs.size : 0})).sort((a,b) => b.sales-a.sales).slice(0, 12);
     });
   });
   
@@ -788,8 +790,8 @@ function aggregateData(rows) {
     const tot = eastSales + westSales;
     const aIF = (rs) => { const x=rs.filter(r=>r.avgIF>0); return x.length ? x.reduce((s,r)=>s+r.avgIF,0)/x.length : 0; };
     areaData[m] = [
-      { name:'East', sales:eastSales, margin:eastRows.reduce((s,r)=>s+r.margin,0), ifDone:eastRows.reduce((s,r)=>s+r.ifDone,0), avgIF:parseFloat(aIF(eastRows).toFixed(2)), pct:tot>0?parseFloat((eastSales/tot*100).toFixed(2)):0 },
-      { name:'West', sales:westSales, margin:westRows.reduce((s,r)=>s+r.margin,0), ifDone:westRows.reduce((s,r)=>s+r.ifDone,0), avgIF:parseFloat(aIF(westRows).toFixed(2)), pct:tot>0?parseFloat((westSales/tot*100).toFixed(2)):0 }
+      { name:'East', sales:eastSales, margin:eastRows.reduce((s,r)=>s+r.margin,0), ifDone:new Set(eastRows.map(r=>r.ref).filter(Boolean)).size, avgIF:parseFloat(aIF(eastRows).toFixed(2)), pct:tot>0?parseFloat((eastSales/tot*100).toFixed(2)):0 },
+      { name:'West', sales:westSales, margin:westRows.reduce((s,r)=>s+r.margin,0), ifDone:new Set(westRows.map(r=>r.ref).filter(Boolean)).size, avgIF:parseFloat(aIF(westRows).toFixed(2)), pct:tot>0?parseFloat((westSales/tot*100).toFixed(2)):0 }
     ];
   });
   
@@ -804,9 +806,10 @@ function aggregateData(rows) {
         if (!custMap[r.customer]) custMap[r.customer] = {name:r.customer, sales:0, margin:0, orders:0};
         custMap[r.customer].sales += r.sales;
         custMap[r.customer].margin += r.margin;
-        custMap[r.customer].orders += r.ifDone;
+        if (!custMap[r.customer]._refs) custMap[r.customer]._refs = new Set();
+        custMap[r.customer]._refs.add(r.ref);
       });
-      cust[key] = Object.values(custMap).sort((a,b)=>b.sales-a.sales).slice(0,12);
+      cust[key] = Object.values(custMap).map(c=>({...c, orders: c._refs ? c._refs.size : 0})).sort((a,b)=>b.sales-a.sales).slice(0,12);
     });
   });
   
@@ -822,11 +825,12 @@ function aggregateData(rows) {
         if (!byCat[r.category][r.customer]) byCat[r.category][r.customer] = {name:r.customer, sales:0, margin:0, orders:0};
         byCat[r.category][r.customer].sales += r.sales;
         byCat[r.category][r.customer].margin += r.margin;
-        byCat[r.category][r.customer].orders += r.ifDone;
+        if (!byCat[r.category][r.customer]._refs) byCat[r.category][r.customer]._refs = new Set();
+        byCat[r.category][r.customer]._refs.add(r.ref);
       });
       custCat[key] = {};
       Object.keys(byCat).forEach(catName => {
-        custCat[key][catName] = Object.values(byCat[catName]).sort((a,b)=>b.sales-a.sales).slice(0,5);
+        custCat[key][catName] = Object.values(byCat[catName]).map(c=>({...c, orders: c._refs ? c._refs.size : 0})).sort((a,b)=>b.sales-a.sales).slice(0,5);
       });
     });
   });
@@ -877,7 +881,7 @@ function aggregateData(rows) {
         name: c.name, actual_sales: c.sales, actual_margin: c.margin,
         forecast_sales: Math.round(c.sales + dailyAvgS * daysRemaining),
         forecast_margin: Math.round(c.margin + dailyAvgM * daysRemaining),
-        ifDone: c.ifDone, pct: c.pct
+        ifDone: c._refs ? c._refs.size : 0, pct: c.pct
       };
     });
   };
