@@ -4,7 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Operasional & Sales 2026</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
+let selectedYear='all';
+function setYear(v){
+  selectedYear=v;
+  if(typeof render==='function'){ render(); }
+}
+
+// Populate tahun dari data bulan yang tersedia
+document.addEventListener('DOMContentLoaded',()=>{
+  const y=document.getElementById('selYear');
+  if(!y) return;
+  const years=[...new Set(
+    Array.from(document.querySelectorAll('#selMonth option'))
+      .map(o=>o.value.split('-')[0])
+      .filter(v=>/^\d{4}$/.test(v))
+  )];
+  years.sort().forEach(yr=>{
+    const op=document.createElement('option');
+    op.value=yr;
+    op.textContent=yr;
+    y.appendChild(op);
+  });
+});
+</script>
 <style>
 :root{
   --bg:#f4f3f0;--surface:#fff;--surface2:#f8f7f5;--surface3:#f0ede8;
@@ -241,6 +264,17 @@ tr.sel td{background:var(--bluel);}
 
 <!-- FILTER BAR -->
 <div class="fbar">
+  <div class="fgroup">
+    <span class="flabel">Tahun</span>
+    <select class="fsel" id="selYear" onchange="setYear(this.value)">
+      <option value="all">Semua Tahun</option>
+      <option value="2023">2023</option>
+      <option value="2024">2024</option>
+      <option value="2025">2025</option>
+      <option value="2026">2026</option>
+    </select>
+  </div>
+  <span class="fsep"></span>
   <div class="fgroup">
     <span class="flabel">Bulan</span>
     <select class="fsel" id="selMonth" onchange="setMonth(this.value)">
@@ -501,7 +535,7 @@ tr.sel td{background:var(--bluel);}
 /* ═══ DYNAMIC DATA LOADER ═══ */
 const SHEET_ID = '1DkcMSZGlLdGPXgT9JQpgISLGJk9JVJGR3CAxDHTXrc8';
 const SHEET_GID = '1512377542';
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwra61gPPUJ9H2USAiAkTOZnn6LxkmCzSPDi548BxhCoiWVsiayLRio-jb38810VYty/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6e-nXhwPpUELB7fxFSuu5PMgPKUVAovn3TALfoeEn-iIeXK1FSJjsSimMY5r0n-eU/exec';
 
 // ── FALLBACK DATA (hardcoded, used if fetch fails) ──
 /* ═══ DATA ═══ */
