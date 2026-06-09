@@ -4,30 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Operasional & Sales 2026</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
-let selectedYear='all';
-function setYear(v){
-  selectedYear=v;
-  if(typeof render==='function'){ render(); }
-}
-
-// Populate tahun dari data bulan yang tersedia
-document.addEventListener('DOMContentLoaded',()=>{
-  const y=document.getElementById('selYear');
-  if(!y) return;
-  const years=[...new Set(
-    Array.from(document.querySelectorAll('#selMonth option'))
-      .map(o=>o.value.split('-')[0])
-      .filter(v=>/^\d{4}$/.test(v))
-  )];
-  years.sort().forEach(yr=>{
-    const op=document.createElement('option');
-    op.value=yr;
-    op.textContent=yr;
-    y.appendChild(op);
-  });
-});
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
   --bg:#f4f3f0;--surface:#fff;--surface2:#f8f7f5;--surface3:#f0ede8;
@@ -592,6 +569,7 @@ function useFallback() {
   MLABELS = FB_MLABELS;
   MFULL = FB_MFULL;
   hideLoading();
+  updateMonthOptions();
   renderAll();
   showToast('⚠️ Menggunakan data cache lokal');
 }
@@ -988,6 +966,7 @@ async function initDashboard() {
     if (hdrSub) hdrSub.textContent = `Data per 8 juni 2026 10.00 WIB · ${MONTHS[0]} s/d ${MONTHS[MONTHS.length-1]}`;
     
     hideLoading();
+    updateMonthOptions();
     renderAll();
     showToast(`✓ Data live: ${rows.length.toLocaleString('id-ID')} transaksi`);
     
@@ -999,7 +978,7 @@ async function initDashboard() {
 }
 
 /* ═══ STATE ═══ */
-let S={month:'all',area:'all',cat:null};
+let S={year:'all',month:'all',area:'all',cat:null};
 let openCatDr=null;
 
 /* ═══ UTILS ═══ */
@@ -1016,7 +995,7 @@ function ifColor(v){return v<5?'#1D9E75':v<=12?'#EF9F27':'#E24B4A';}
 function getCats(){const k=S.month+'_'+S.area;return CAT[k]||(S.month==='all'?getMergedCats():CAT[MONTHS[0]+'_'+S.area]||[]);}
 function getMergedCats(){
   const map={};
-  const months=MONTHS;
+  const months=getFilteredMonths();
   months.forEach(m=>{
     const key=m+'_'+S.area;
     (CAT[key]||[]).forEach(c=>{
@@ -1030,13 +1009,13 @@ function getMergedCats(){
 function getSP(){
   if(S.month!=='all'){const k=S.month+'_'+S.area;return SP[k]||[];}
   const map={};
-  MONTHS.forEach(m=>{const k=m+'_'+S.area;(SP[k]||[]).forEach(s=>{if(!map[s.name])map[s.name]={name:s.name,sales:0,margin:0,orders:0,area:s.area};map[s.name].sales+=s.sales;map[s.name].margin+=s.margin;map[s.name].orders+=s.orders;});});
+  getFilteredMonths().forEach(m=>{const k=m+'_'+S.area;(SP[k]||[]).forEach(s=>{if(!map[s.name])map[s.name]={name:s.name,sales:0,margin:0,orders:0,area:s.area};map[s.name].sales+=s.sales;map[s.name].margin+=s.margin;map[s.name].orders+=s.orders;});});
   return Object.values(map).sort((a,b)=>b.sales-a.sales).slice(0,10);
 }
 function getAreaData(){
   if(S.month!=='all')return AREA_DATA[S.month]||[];
   const map={};
-  MONTHS.forEach(m=>{(AREA_DATA[m]||[]).forEach(a=>{if(!map[a.name])map[a.name]={name:a.name,sales:0,margin:0,ifDone:0,avgIF:0,_cnt:0};map[a.name].sales+=a.sales;map[a.name].margin+=a.margin;map[a.name].ifDone+=a.ifDone;map[a.name].avgIF+=a.avgIF;map[a.name]._cnt++;});});
+  getFilteredMonths().forEach(m=>{(AREA_DATA[m]||[]).forEach(a=>{if(!map[a.name])map[a.name]={name:a.name,sales:0,margin:0,ifDone:0,avgIF:0,_cnt:0};map[a.name].sales+=a.sales;map[a.name].margin+=a.margin;map[a.name].ifDone+=a.ifDone;map[a.name].avgIF+=a.avgIF;map[a.name]._cnt++;});});
   const arr=Object.values(map).map(a=>{a.avgIF=a._cnt>0?a.avgIF/a._cnt:0;return a;});
   const tot=arr.reduce((s,a)=>s+a.sales,0);
   return arr.map(a=>({...a,pct:tot>0?a.sales/tot*100:0}));
@@ -1044,13 +1023,13 @@ function getAreaData(){
 function getCusts(){
   if(S.month!=='all'){const k=S.month+'_'+S.area;return CUST[k]||[];}
   const map={};
-  MONTHS.forEach(m=>{const k=m+'_'+S.area;(CUST[k]||[]).forEach(c=>{if(!map[c.name])map[c.name]={name:c.name,sales:0,margin:0,orders:0};map[c.name].sales+=c.sales;map[c.name].margin+=c.margin;map[c.name].orders+=c.orders;});});
+  getFilteredMonths().forEach(m=>{const k=m+'_'+S.area;(CUST[k]||[]).forEach(c=>{if(!map[c.name])map[c.name]={name:c.name,sales:0,margin:0,orders:0};map[c.name].sales+=c.sales;map[c.name].margin+=c.margin;map[c.name].orders+=c.orders;});});
   return Object.values(map).sort((a,b)=>b.sales-a.sales).slice(0,10);
 }
 function getCustByCat(catName){
   if(S.month!=='all'){const k=S.month+'_'+S.area;return(CUST_CAT[k]&&CUST_CAT[k][catName])||[];}
   const map={};
-  MONTHS.forEach(m=>{const k=m+'_'+S.area;((CUST_CAT[k]&&CUST_CAT[k][catName])||[]).forEach(c=>{if(!map[c.name])map[c.name]={name:c.name,sales:0,margin:0,orders:0};map[c.name].sales+=c.sales;map[c.name].margin+=c.margin;map[c.name].orders+=c.orders;});});
+  getFilteredMonths().forEach(m=>{const k=m+'_'+S.area;((CUST_CAT[k]&&CUST_CAT[k][catName])||[]).forEach(c=>{if(!map[c.name])map[c.name]={name:c.name,sales:0,margin:0,orders:0};map[c.name].sales+=c.sales;map[c.name].margin+=c.margin;map[c.name].orders+=c.orders;});});
   return Object.values(map).sort((a,b)=>b.sales-a.sales).slice(0,5);
 }
 function getMonthlyData(){
@@ -1059,9 +1038,9 @@ function getMonthlyData(){
 }
 function getDailyData(){
   if(S.month==='all'){
-    // merge all months
+    // merge filtered months
     const merged={labels:[],values:[]};
-    MONTHS.forEach(m=>{
+    getFilteredMonths().forEach(m=>{
       const k=m+'_'+S.area;
       const d=DAILY[k];
       if(d)d.labels.forEach((l,i)=>{merged.labels.push(MLABELS[m]+'/'+l);merged.values.push(d.values[i]);});
@@ -1076,16 +1055,20 @@ const CH={};
 function mkChart(id,cfg){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),cfg);return CH[id];}
 
 function buildMonthly(){
-  const data=MONTHS.map(m=>{
+  const months=getFilteredMonths();
+  const data=months.map(m=>{
     const src=S.area==='East'?MONTHLY_EAST:S.area==='West'?MONTHLY_WEST:MONTHLY_ALL;
     return src.find(d=>d.month===m)||{month:m,sales:0,margin:0,orders:0,avgIF:0};
   });
+  // Label: tampilkan tahun jika multi-tahun atau selalu
+  const uniqueYears=[...new Set(months.map(m=>m.split('-')[0]))];
+  const showYear=uniqueYears.length>1||S.year==='all';
   mkChart('chartMonthly',{
     type:'bar',
     data:{
-      labels:MONTHS.map(m=>MLABELS[m]+' 2026'),
+      labels:months.map(m=>MLABELS[m]+(showYear?' '+m.split('-')[0]:'')),
       datasets:[
-        {label:'Sales',data:data.map(d=>d.sales),backgroundColor:data.map((_,i)=>S.month!=='all'&&MONTHS[i]===S.month?'#185FA5':'#378ADD'),borderRadius:5,borderSkipped:false,order:2,yAxisID:'y'},
+        {label:'Sales',data:data.map(d=>d.sales),backgroundColor:data.map((_,i)=>S.month!=='all'&&months[i]===S.month?'#185FA5':'#378ADD'),borderRadius:5,borderSkipped:false,order:2,yAxisID:'y'},
         {type:'line',label:'Margin Rate',data:data.map(d=>d.sales>0?(d.margin/d.sales*100):0),borderColor:'#D85A30',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#D85A30',fill:false,tension:0.35,order:1,yAxisID:'y2'}
       ]
     },
@@ -1097,7 +1080,7 @@ function buildMonthly(){
         y:{grid:{color:GC},ticks:{color:TC,font:{size:11},callback:v=>'Rp'+fB(v)},position:'left'},
         y2:{grid:{display:false},ticks:{color:'#D85A30',font:{size:11},callback:v=>v.toFixed(1)+'%'},position:'right'}
       },
-      onClick(_,items){if(!items.length)return;const m=MONTHS[items[0].index];setMonth(S.month===m?'all':m);},
+      onClick(_,items){if(!items.length)return;const m=months[items[0].index];setMonth(S.month===m?'all':m);},
       onHover(_,items){document.getElementById('chartMonthly').style.cursor=items.length?'pointer':'default';}
     }
   });
@@ -1180,9 +1163,11 @@ function renderMetrics(){
   const avgIFkey=(S.month==='all'?'all':S.month)+'_'+S.area;
   const avgIF=(AVGIF[avgIFkey]||AVGIF['2026-05_all']).toFixed(1);
   const mPct=ts>0?(tm/ts*100).toFixed(2):'0.00';
-  const lbl=(S.month==='all'?'Jan–Mei 2026':MFULL[S.month])+' · '+(S.area==='all'?'Semua Area':S.area);
+  const fMonths=getFilteredMonths();
+  const periodLbl=S.month!=='all'?(MFULL[S.month]||S.month):S.year!=='all'?'Jan–Des '+S.year:fMonths.length>0?MLABELS[fMonths[0]]+'–'+MLABELS[fMonths[fMonths.length-1]]+(fMonths[0].split('-')[0]):'—';
+  const lbl=periodLbl+' · '+(S.area==='all'?'Semua Area':S.area);
   document.getElementById('secLabel').textContent=lbl;
-  document.getElementById('hdr-period').textContent=S.month==='all'?'Jan–Mei 2026':MFULL[S.month];
+  document.getElementById('hdr-period').textContent=S.month!=='all'?(MFULL[S.month]||S.month):periodLbl;
   document.getElementById('mv-sales').textContent=fM(ts);
   document.getElementById('mv-sub').textContent=fN(ifd)+' delivery';
   document.getElementById('mv-margin').textContent=fM(tm);
@@ -1277,7 +1262,7 @@ function renderTable(){
 }
 
 function renderCatPills(){
-  const names=[...new Set(MONTHS.flatMap(m=>(CAT[m+'_all']||[]).map(c=>c.name)))];
+  const names=[...new Set(getFilteredMonths().flatMap(m=>(CAT[m+'_all']||[]).map(c=>c.name)))];
   const sel=document.getElementById('selCat');
   if(!sel)return;
   const cur=S.cat||'';
@@ -1288,6 +1273,7 @@ function renderCatPills(){
 function renderSelInfo(){
   const el=document.getElementById('selInfo');
   const parts=[];
+  if(S.year!=='all')parts.push('Tahun: <b>'+S.year+'</b>');
   if(S.month!=='all')parts.push('Bulan: <b>'+(MFULL[S.month]||S.month)+'</b>');
   if(S.area!=='all')parts.push('Area: <b>'+S.area+'</b>');
   if(S.cat)parts.push('Kategori: <b>'+S.cat+'</b>');
@@ -1296,6 +1282,38 @@ function renderSelInfo(){
 }
 
 /* ═══ ACTIONS ═══ */
+function setYear(y){
+  S.year=y;
+  const el=document.getElementById('selYear');
+  if(el){el.value=y;el.classList.toggle('has-val',y!=='all');}
+  // Reset bulan jika bulan yang dipilih tidak ada di tahun baru
+  if(S.month!=='all' && y!=='all' && !S.month.startsWith(y)){
+    S.month='all';
+    const sm=document.getElementById('selMonth');
+    if(sm){sm.value='all';sm.classList.remove('has-val');}
+  }
+  updateMonthOptions();
+  renderAll();
+  showToast('Tahun: '+(y==='all'?'Semua Tahun':y));
+}
+
+// Filter opsi bulan sesuai tahun yang dipilih
+function updateMonthOptions(){
+  const sel=document.getElementById('selMonth');
+  if(!sel||!MONTHS) return;
+  const filtered=S.year==='all'?MONTHS:MONTHS.filter(m=>m.startsWith(S.year));
+  const cur=S.month;
+  sel.innerHTML='<option value="all">Semua Bulan</option>'+
+    filtered.map(m=>`<option value="${m}"${m===cur?' selected':''}>${(MFULL&&MFULL[m])||m}</option>`).join('');
+  sel.classList.toggle('has-val',cur!=='all'&&filtered.includes(cur));
+}
+
+// Kembalikan daftar bulan yang aktif berdasarkan filter tahun
+function getFilteredMonths(){
+  if(!MONTHS) return [];
+  return S.year==='all'?MONTHS:MONTHS.filter(m=>m.startsWith(S.year));
+}
+
 function setMonth(m){
   S.month=m;
   const el=document.getElementById('selMonth');
@@ -1327,10 +1345,12 @@ function selectCat(n){
 }
 
 function resetAll(){
-  S={month:'all',area:'all',cat:null};
+  S={year:'all',month:'all',area:'all',cat:null};
+  const sy=document.getElementById('selYear');if(sy){sy.value='all';sy.classList.remove('has-val');}
   const sm=document.getElementById('selMonth');if(sm){sm.value='all';sm.classList.remove('has-val');}
   const sa=document.getElementById('selArea');if(sa){sa.value='all';sa.classList.remove('has-val');}
   const sc=document.getElementById('selCat');if(sc){sc.value='';sc.classList.remove('has-val');}
+  updateMonthOptions();
   renderAll();
   if(openCatDr)refreshCatCustDr();
   showToast('Semua filter direset');
@@ -1379,7 +1399,7 @@ function showSPDr(sp){
 function buildCatCustDrFilters(){
   const monthOpts=[
     '<option value="all"'+(S.month==='all'?' selected':'')+'>Semua Bulan</option>',
-    ...MONTHS.map(m=>'<option value="'+m+'"'+(S.month===m?' selected':'')+'>'+MFULL[m]+'</option>')
+    ...getFilteredMonths().map(m=>'<option value="'+m+'"'+(S.month===m?' selected':'')+'>'+MFULL[m]+'</option>')
   ].join('');
   const areaOpts=['<option value="all"'+(S.area==='all'?' selected':'')+'>Semua Area</option>',
     '<option value="East"'+(S.area==='East'?' selected':'')+'>East</option>',
