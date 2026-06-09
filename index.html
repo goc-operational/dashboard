@@ -245,10 +245,6 @@ tr.sel td{background:var(--bluel);}
     <span class="flabel">Tahun</span>
     <select class="fsel" id="selYear" onchange="setYear(this.value)">
       <option value="all">Semua Tahun</option>
-      <option value="2023">2023</option>
-      <option value="2024">2024</option>
-      <option value="2025">2025</option>
-      <option value="2026">2026</option>
     </select>
   </div>
   <span class="fsep"></span>
@@ -256,12 +252,6 @@ tr.sel td{background:var(--bluel);}
     <span class="flabel">Bulan</span>
     <select class="fsel" id="selMonth" onchange="setMonth(this.value)">
       <option value="all">Semua Bulan</option>
-      <option value="2026-01">Januari 2026</option>
-      <option value="2026-02">Februari 2026</option>
-      <option value="2026-03">Maret 2026</option>
-      <option value="2026-04">April 2026</option>
-      <option value="2026-05">Mei 2026</option>
-      <option value="2026-06">Juni 2026</option>
     </select>
   </div>
   <span class="fsep"></span>
@@ -538,8 +528,6 @@ const FB_MONTHS=["2026-01","2026-02","2026-03","2026-04","2026-05"];
 const FB_FC_AREA={"all":{"actual_sales":12088660714,"actual_margin":989977205,"daily_avg_sales":464948489,"daily_avg_margin":38076046,"forecast_sales":14413403159,"forecast_margin":1180357435,"days_done":26,"days_remaining":5,"days_total":31,"pct_done":83.87},"East":{"actual_sales":7226030823,"actual_margin":555634422,"daily_avg_sales":277924262,"daily_avg_margin":21370555,"forecast_sales":8615652133,"forecast_margin":662487197,"days_done":26,"days_remaining":5,"days_total":31,"pct_done":83.87},"West":{"actual_sales":4862629891,"actual_margin":434342784,"daily_avg_sales":187024227,"daily_avg_margin":16705492,"forecast_sales":5797751026,"forecast_margin":517870244,"days_done":26,"days_remaining":5,"days_total":31,"pct_done":83.87}};
 const FB_FC_CAT={"all":[{"name":"Cement / Cement : Beton : Readymix","actual_sales":9491517742,"actual_margin":581066640,"forecast_sales":11316809616,"forecast_margin":692810225,"ifDone":1582,"pct":6.12},{"name":"Bricks","actual_sales":1037787824,"actual_margin":123211534,"forecast_sales":1237362406,"forecast_margin":146906060,"ifDone":47,"pct":11.87},{"name":"Others","actual_sales":433759200,"actual_margin":64939200,"forecast_sales":517174431,"forecast_margin":77427508,"ifDone":9,"pct":14.97},{"name":"Bar","actual_sales":282068500,"actual_margin":60377892,"forecast_sales":336312442,"forecast_margin":71989025,"ifDone":2,"pct":21.41},{"name":"Carbon Steel","actual_sales":199775515,"actual_margin":49683916,"forecast_sales":238193883,"forecast_margin":59238515,"ifDone":4,"pct":24.87},{"name":"Precast","actual_sales":168086000,"actual_margin":25846000,"forecast_sales":200410231,"forecast_margin":30816385,"ifDone":7,"pct":15.38},{"name":"Cement / Cement : Mortar","actual_sales":145652500,"actual_margin":11181092,"forecast_sales":173662596,"forecast_margin":13331301,"ifDone":10,"pct":7.68},{"name":"Cement","actual_sales":138689890,"actual_margin":14069629,"forecast_sales":165361023,"forecast_margin":16775327,"ifDone":11,"pct":10.14},{"name":"Cement / Cement : Beton","actual_sales":89332985,"actual_margin":15631505,"forecast_sales":106512405,"forecast_margin":18637564,"ifDone":9,"pct":17.5},{"name":"WOOD","actual_sales":65315315,"actual_margin":35315315,"forecast_sales":77875952,"forecast_margin":42106722,"ifDone":1,"pct":54.07}],"East":[{"name":"Cement / Cement : Beton : Readymix","actual_sales":5802331753,"actual_margin":341138480,"forecast_sales":6918164783,"forecast_margin":406742034,"ifDone":1072,"pct":5.88},{"name":"Others","actual_sales":433759200,"actual_margin":64939200,"forecast_sales":517174431,"forecast_margin":77427508,"ifDone":9,"pct":14.97},{"name":"Bricks","actual_sales":428587850,"actual_margin":32443668,"forecast_sales":511008590,"forecast_margin":38682835,"ifDone":17,"pct":7.57},{"name":"Carbon Steel","actual_sales":199775515,"actual_margin":49683916,"forecast_sales":238193883,"forecast_margin":59238515,"ifDone":4,"pct":24.87},{"name":"Cement / Cement : Mortar","actual_sales":115352500,"actual_margin":6286500,"forecast_sales":137535673,"forecast_margin":7495442,"ifDone":7,"pct":5.45},{"name":"WOOD","actual_sales":65315315,"actual_margin":35315315,"forecast_sales":77875952,"forecast_margin":42106722,"ifDone":1,"pct":54.07},{"name":"Cement","actual_sales":62360690,"actual_margin":4090417,"forecast_sales":74353130,"forecast_margin":4877035,"ifDone":4,"pct":6.56},{"name":"Precast","actual_sales":44436000,"actual_margin":6016000,"forecast_sales":52981385,"forecast_margin":7172923,"ifDone":4,"pct":13.54},{"name":"Cement / Cement : Beton","actual_sales":43680000,"actual_margin":7879200,"forecast_sales":52080000,"forecast_margin":9394431,"ifDone":2,"pct":18.04},{"name":"Flooring","actual_sales":30432000,"actual_margin":7841726,"forecast_sales":36284308,"forecast_margin":9349750,"ifDone":4,"pct":25.77}],"West":[{"name":"Cement / Cement : Beton : Readymix","actual_sales":3689185989,"actual_margin":239928160,"forecast_sales":4398644833,"forecast_margin":286068191,"ifDone":510,"pct":6.5},{"name":"Bricks","actual_sales":609199974,"actual_margin":90767866,"forecast_sales":726353815,"forecast_margin":108223225,"ifDone":30,"pct":14.9},{"name":"Bar","actual_sales":282068500,"actual_margin":60377892,"forecast_sales":336312442,"forecast_margin":71989025,"ifDone":2,"pct":21.41},{"name":"Precast","actual_sales":123650000,"actual_margin":19830000,"forecast_sales":147428846,"forecast_margin":23643462,"ifDone":3,"pct":16.04},{"name":"Cement","actual_sales":76329200,"actual_margin":9979212,"forecast_sales":91007892,"forecast_margin":11898292,"ifDone":7,"pct":13.07},{"name":"Cement / Cement : Beton","actual_sales":45652985,"actual_margin":7752305,"forecast_sales":54432405,"forecast_margin":9243133,"ifDone":7,"pct":16.98},{"name":"Cement / Cement : Mortar","actual_sales":30300000,"actual_margin":4894592,"forecast_sales":36126923,"forecast_margin":5835859,"ifDone":3,"pct":16.15},{"name":"Flooring","actual_sales":6243243,"actual_margin":812757,"forecast_sales":7443867,"forecast_margin":969056,"ifDone":1,"pct":13.02}]};
 const FB_CURRENT_MONTH="2026-05";
-// shortCat moved below
-// function shortCat(n){return n&&n.includes(':')?n.split(':').pop().trim():n;}
 
 const FB_AVGIF={"2026-01_all":89.2,"2026-01_East":90,"2026-01_West":87.9,"2026-02_all":63.2,"2026-02_East":63.1,"2026-02_West":63.2,"2026-03_all":49.8,"2026-03_East":50.1,"2026-03_West":49.1,"2026-04_all":13.9,"2026-04_East":14.2,"2026-04_West":13.4,"2026-05_all":4.5,"2026-05_East":4.8,"2026-05_West":4.1};
 
@@ -902,9 +890,7 @@ function aggregateData(rows) {
   const fcCat = { all: buildFcCat('all'), East: buildFcCat('East'), West: buildFcCat('West') };
   
   // ── Build MLABELS filter options ──
-  // Add month selectors dynamically
-  updateMonthSelectors(months, mfull);
-  
+
   return {
     MONTHLY_ALL: buildMonthly('all'),
     MONTHLY_EAST: buildMonthly('East'),
@@ -917,13 +903,6 @@ function aggregateData(rows) {
   };
 }
 
-function updateMonthSelectors(months, mfull) {
-  // Update all month selectors with dynamic months
-  const opts = ['<option value="all">Semua Bulan</option>',
-    ...months.map(m => `<option value="${m}">${mfull[m] || m} ${m.split('-')[0]}</option>`)
-  ].join('');
-  document.querySelectorAll('#selMonth, #drSelMonth').forEach(el => { el.innerHTML = opts; });
-}
 
 async function initDashboard() {
   try {
@@ -1299,6 +1278,16 @@ function setYear(y){
 
 // Filter opsi bulan sesuai tahun yang dipilih
 function updateMonthOptions(){
+  // Populate tahun dari MONTHS data
+  const selY=document.getElementById('selYear');
+  if(selY&&MONTHS){
+    const years=[...new Set(MONTHS.map(m=>m.split('-')[0]))].sort();
+    const curY=S.year;
+    selY.innerHTML='<option value="all">Semua Tahun</option>'+
+      years.map(y=>`<option value="${y}"${y===curY?' selected':''}>${y}</option>`).join('');
+    selY.classList.toggle('has-val',curY!=='all');
+  }
+  // Populate bulan sesuai filter tahun
   const sel=document.getElementById('selMonth');
   if(!sel||!MONTHS) return;
   const filtered=S.year==='all'?MONTHS:MONTHS.filter(m=>m.startsWith(S.year));
