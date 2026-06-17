@@ -231,7 +231,7 @@ tr.sel td{background:var(--bluel);}
     <div class="logo"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div>
     <div>
       <div class="hdr-title">Dashboard Operasional & Sales</div>
-      <div class="hdr-sub">Data 31 Mei 2026 · 2026-01 s/d 2026-05</div>
+      <div class="hdr-sub">Memuat data...</div>
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
@@ -556,10 +556,19 @@ function useFallback() {
   AVGIF = FB_AVGIF;
   MLABELS = FB_MLABELS;
   MFULL = FB_MFULL;
+  // Update header dengan bulan terakhir dari data fallback
+  const hdrSubFb = document.querySelector('.hdr-sub');
+  if (hdrSubFb && FB_MONTHS && FB_MONTHS.length) {
+    const lastM = FB_MONTHS[FB_MONTHS.length - 1];
+    const [yr, mo] = lastM.split('-').map(Number);
+    const lastDay = new Date(yr, mo, 0); // hari terakhir bulan tersebut
+    const dateStr = lastDay.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
+    hdrSubFb.textContent = `Data per ${dateStr} (cache) \u00b7 ${FB_MONTHS[0]} s/d ${lastM}`;
+  }
   hideLoading();
   updateMonthOptions();
   renderAll();
-  showToast('⚠️ Menggunakan data cache lokal');
+  showToast('\u26a0\ufe0f Menggunakan data cache lokal');
 }
 
 function hideLoading() {
@@ -586,7 +595,7 @@ async function fetchSheetData() {
     const json = await res.json();
     if (json.status !== 'ok') throw new Error(json.error || 'Response tidak valid');
     document.getElementById('loadSub').textContent = `Memproses ${json.rows.length.toLocaleString('id-ID')} baris...`;
-    return json; // {status, rows, headers}
+    return json; // {status, rows, headers, lastModified (optional)}
   } catch(e) {
     throw new Error('Gagal fetch dari Apps Script: ' + (e.message || e));
   }
@@ -938,11 +947,36 @@ async function initDashboard() {
     MLABELS = data.MLABELS;
     MFULL = data.MFULL;
     
-    // Update header info
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
+    // Update header info — gunakan lastModified dari Apps Script (sumber utama),
+    // fallback ke tanggal delivery terbaru dari data jika lastModified tidak ada
     const hdrSub = document.querySelector('.hdr-sub');
-    if (hdrSub) hdrSub.textContent = `Data per 14 juni 2026 22.00 WIB · ${MONTHS[0]} s/d ${MONTHS[MONTHS.length-1]}`;
+    if (hdrSub) {
+      let dataDateStr = '';
+      if (table.lastModified) {
+        // Apps Script mengirim lastModified sbg "yyyy-MM-dd'T'HH:mm:ss" (waktu lokal spreadsheet)
+        const lm = new Date(table.lastModified);
+        if (!isNaN(lm.getTime())) {
+          const tgl = lm.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
+          const jam = lm.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}).replace(':', '.');
+          dataDateStr = `${tgl} ${jam} WIB`;
+        }
+      }
+      if (!dataDateStr) {
+        // Fallback: rekonstruksi tanggal terbaru dari monthKey + dayNum di rows
+        let maxTs = 0;
+        let maxDate = null;
+        rows.forEach(r => {
+          const [yr, mo] = r.monthKey.split('-').map(Number);
+          const day = Number(r.dayNum);
+          const ts = new Date(yr, mo - 1, day).getTime();
+          if (ts > maxTs) { maxTs = ts; maxDate = new Date(yr, mo - 1, day); }
+        });
+        dataDateStr = maxDate
+          ? maxDate.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'})
+          : new Date().toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
+      }
+      hdrSub.textContent = `Data per ${dataDateStr} · ${MONTHS[0]} s/d ${MONTHS[MONTHS.length-1]}`;
+    }
     
     hideLoading();
     updateMonthOptions();
