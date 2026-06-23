@@ -1047,7 +1047,10 @@ function getCustByCat(catName){
 }
 function getMonthlyData(){
   const src=S.area==='East'?MONTHLY_EAST:S.area==='West'?MONTHLY_WEST:MONTHLY_ALL;
-  return S.month==='all'?src:src.filter(m=>m.month===S.month);
+  // Terapkan filter bulan DAN tahun
+  if(S.month!=='all') return src.filter(m=>m.month===S.month);
+  if(S.year!=='all') return src.filter(m=>m.month.startsWith(S.year));
+  return src;
 }
 function getDailyData(){
   if(S.month==='all'){
@@ -1168,13 +1171,16 @@ function buildCust(){
 
 /* ═══ RENDER UI ═══ */
 function renderMetrics(){
-  const cats=getCats();
+  // ── Hitung Total Sales, Margin, IF Done dari MONTHLY data (bukan getCats yang ter-slice top 12) ──
   const sp=getSP();
-  const ts=cats.reduce((a,c)=>a+c.sales,0);
-  const tm=cats.reduce((a,c)=>a+c.margin,0);
-  const ifd=cats.reduce((a,c)=>a+c.ifDone,0);
-  const avgIFkey=(S.month==='all'?'all':S.month)+'_'+S.area;
-  const avgIF=(AVGIF[avgIFkey]||AVGIF['2026-05_all']).toFixed(1);
+  const monthly=getMonthlyData(); // data per bulan, tanpa slice
+  const ts=monthly.reduce((a,m)=>a+m.sales,0);
+  const tm=monthly.reduce((a,m)=>a+m.margin,0);
+  const ifd=monthly.reduce((a,m)=>a+m.orders,0);
+  // Avg IF Days: gunakan AVGIF lookup, fallback ke 0 jika tidak ada (bukan hardcode bulan tertentu)
+  const avgIFkey=(S.month==='all'?MONTHS[MONTHS.length-1]:S.month)+'_'+S.area;
+  const avgIFraw=AVGIF[avgIFkey]!=null?AVGIF[avgIFkey]:0;
+  const avgIF=avgIFraw.toFixed(1);
   const mPct=ts>0?(tm/ts*100).toFixed(2):'0.00';
   const fMonths=getFilteredMonths();
   const periodLbl=S.month!=='all'?(MFULL[S.month]||S.month):S.year!=='all'?'Jan–Des '+S.year:fMonths.length>0?MLABELS[fMonths[0]]+'–'+MLABELS[fMonths[fMonths.length-1]]+(fMonths[0].split('-')[0]):'—';
