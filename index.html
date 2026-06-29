@@ -434,7 +434,7 @@ tr.sel td{background:var(--bluel);}
       <div class="fc-mc-sub">Sales terealisasi</div>
     </div>
     <div class="fc-mc">
-      <div class="fc-mc-lbl">Forecast Total Mei</div>
+      <div class="fc-mc-lbl" id="fcLblTotalSales">Forecast Total</div>
       <div class="fc-mc-val" id="fcTotalSales">—</div>
       <div class="fc-mc-sub">Proyeksi akhir bulan</div>
     </div>
@@ -1528,7 +1528,9 @@ function renderForecast(){
   const vsApr=((fc.forecast_sales/apr-1)*100).toFixed(1);
   const vsAprCol=vsApr>0?'rgba(255,255,255,.9)':'rgba(255,200,180,.9)';
 
-  document.getElementById('fcSecLabel').textContent=S.area==='all'?'Mei 2026 · Semua Area':'Mei 2026 · '+S.area;
+  const fcMonthLabel=(MFULL[CURRENT_MONTH]||CURRENT_MONTH)+' '+(CURRENT_MONTH?CURRENT_MONTH.split('-')[0]:'');
+  document.getElementById('fcSecLabel').textContent=S.area==='all'?fcMonthLabel+' · Semua Area':fcMonthLabel+' · '+S.area;
+  const fcLblTotal=document.getElementById('fcLblTotalSales');if(fcLblTotal)fcLblTotal.textContent='Forecast Total '+(MFULL[CURRENT_MONTH]||'');
   document.getElementById('fcBannerSub').textContent=`Rata-rata harian Rp ${fB(fc.daily_avg_sales)}/hari · Sisa ${fc.days_remaining} hari kerja`;
   document.getElementById('fcBadgePct').textContent=fc.pct_done+'% bulan berjalan';
   document.getElementById('fcActSales').textContent=fM(fc.actual_sales);
@@ -1613,13 +1615,15 @@ function showFcCatDr(c){
   const growth=((c.forecast_sales/c.actual_sales-1)*100).toFixed(1);
   const addSales=c.forecast_sales-c.actual_sales;
   const addMargin=c.forecast_margin-c.actual_margin;
-  showDr(c.name+' — Forecast Mei 2026','Proyeksi berdasarkan rata-rata harian 1–26 Mei',
+  const fcData=getFcArea();
+  const fcMLabel=(MFULL[CURRENT_MONTH]||'Bulan Berjalan')+' '+(CURRENT_MONTH?CURRENT_MONTH.split('-')[0]:'');
+  showDr(c.name+' — Forecast '+fcMLabel,'Proyeksi berdasarkan rata-rata harian s/d hari ke-'+fcData.days_done,
     `<div class="dg2">
-      <div class="ds"><div class="ds-l">Aktual Sales</div><div class="ds-v" style="color:var(--blue)">${fM(c.actual_sales)}</div><div class="ds-s">s/d 26 Mei (12 hk)</div></div>
-      <div class="ds"><div class="ds-l">Forecast Sales</div><div class="ds-v" style="color:var(--bluem)">${fM(c.forecast_sales)}</div><div class="ds-s">proyeksi akhir Mei</div></div>
+      <div class="ds"><div class="ds-l">Aktual Sales</div><div class="ds-v" style="color:var(--blue)">${fM(c.actual_sales)}</div><div class="ds-s">s/d hari ke-${fcData.days_done}</div></div>
+      <div class="ds"><div class="ds-l">Forecast Sales</div><div class="ds-v" style="color:var(--bluem)">${fM(c.forecast_sales)}</div><div class="ds-s">proyeksi akhir ${MFULL[CURRENT_MONTH]||'bulan'}</div></div>
     </div><div class="dg2">
-      <div class="ds"><div class="ds-l">Aktual Margin</div><div class="ds-v" style="color:var(--teal)">${fM(c.actual_margin)}</div><div class="ds-s">s/d 26 Mei</div></div>
-      <div class="ds"><div class="ds-l">Forecast Margin</div><div class="ds-v" style="color:var(--tealm)">${fM(c.forecast_margin)}</div><div class="ds-s">proyeksi akhir Mei</div></div>
+      <div class="ds"><div class="ds-l">Aktual Margin</div><div class="ds-v" style="color:var(--teal)">${fM(c.actual_margin)}</div><div class="ds-s">s/d hari ke-${fcData.days_done}</div></div>
+      <div class="ds"><div class="ds-l">Forecast Margin</div><div class="ds-v" style="color:var(--tealm)">${fM(c.forecast_margin)}</div><div class="ds-s">proyeksi akhir ${MFULL[CURRENT_MONTH]||'bulan'}</div></div>
     </div><div class="dd"></div>
     <div class="dl">Rincian</div>
     <div class="dr-row"><span>Proyeksi sales tambahan</span><span style="font-weight:600;color:var(--bluem)">+${fM(addSales)}</span></div>
@@ -1628,7 +1632,7 @@ function showFcCatDr(c){
     <div class="dr-row"><span>Margin rate aktual</span><span style="font-weight:600">${c.pct.toFixed(1)}%</span></div>
     <div class="dr-row"><span>IF Done aktual</span><span style="font-weight:600">${fN(c.ifDone)} delivery</span></div>
     <div class="dd"></div>
-    <p style="font-size:11px;color:var(--text3)">* Forecast = rata-rata harian aktual × 9 sisa hari kerja (19–31 Mei 2026)</p>`);}
+    <p style="font-size:11px;color:var(--text3)">* Forecast = rata-rata harian aktual × ${fcData.days_remaining} sisa hari (${MFULL[CURRENT_MONTH]||'bulan berjalan'} ${CURRENT_MONTH?CURRENT_MONTH.split('-')[0]:''})</p>`);}
 
 /* ═══ INIT ═══ */
 initDashboard();
