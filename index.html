@@ -1003,6 +1003,13 @@ const SC=['#185FA5','#0F6E56','#BA7517','#993C1D','#534AB7','#3B6D11','#A32D2D',
 function fM(v){if(v>=1e9)return'Rp '+(v/1e9).toFixed(2)+'M';if(v>=1e6)return'Rp '+(v/1e6).toFixed(0)+'Jt';return'Rp '+(v/1e3).toFixed(0)+'K';}
 function fB(v){if(v>=1e9)return(v/1e9).toFixed(2)+'M';if(v>=1e6)return(v/1e6).toFixed(0)+'Jt';return(v/1e3).toFixed(0)+'K';}
 function fN(v){return Number(v).toLocaleString('id-ID');}
+function buildRangeLabel(){
+  if(!MONTHS||MONTHS.length===0) return 'Semua Bulan';
+  const first=MLABELS[MONTHS[0]]||MONTHS[0];
+  const last=MLABELS[MONTHS[MONTHS.length-1]]||MONTHS[MONTHS.length-1];
+  const yr=MONTHS[MONTHS.length-1]?MONTHS[MONTHS.length-1].split('-')[0]:'';
+  return first==='all'?'Semua Bulan':(first===last?first+' '+yr:first+'–'+last+' '+yr);
+}
 function ifColor(v){return v<5?'#1D9E75':v<=12?'#EF9F27':'#E24B4A';}
 
 function getCats(){const k=S.month+'_'+S.area;return CAT[k]||(S.month==='all'?getMergedCats():CAT[MONTHS[0]+'_'+S.area]||[]);}
@@ -1104,7 +1111,7 @@ function buildMonthly(){
 
 function buildDaily(){
   const d=getDailyData();
-  document.getElementById('dailySec').textContent=S.month==='all'?'Jan–Mei 2026':(MFULL[S.month]||S.month);
+  document.getElementById('dailySec').textContent=S.month==='all'?buildRangeLabel():(MFULL[S.month]||S.month);
   mkChart('chartDaily',{
     type:'bar',
     data:{labels:d.labels,datasets:[
@@ -1152,7 +1159,7 @@ function buildIF(){
 
 function buildCust(){
   const data=getCusts().slice(0,10);
-  document.getElementById('custSec').textContent=S.month==='all'?'Jan–Mei 2026':(MFULL[S.month]||'');
+  document.getElementById('custSec').textContent=S.month==='all'?buildRangeLabel():(MFULL[S.month]||'');
   mkChart('chartCust',{
     type:'bar',
     data:{labels:data.map(c=>c.name.length>16?c.name.slice(0,15)+'…':c.name),datasets:[
@@ -1200,7 +1207,7 @@ function renderMetrics(){
 function renderCatSale(){
   const cats=getCats();
   const maxV=Math.max(...cats.map(c=>c.sales),1);
-  document.getElementById('catSec').textContent=S.month==='all'?'Jan–Mei 2026':(MFULL[S.month]||'');
+  document.getElementById('catSec').textContent=S.month==='all'?buildRangeLabel():(MFULL[S.month]||'');
   document.getElementById('catSale').innerHTML=cats.map((c,i)=>{
     const pct=(c.sales/maxV*100).toFixed(1);
     return`<div class="br" onclick='showCatCustDr(${JSON.stringify(c.name)})' title="${c.name.replace(/"/g,'&quot;')}">
@@ -1226,7 +1233,7 @@ function renderCatMargin(){
 
 function renderAreaCards(){
   const ad=getAreaData().filter(a=>a.name==='East'||a.name==='West');
-  document.getElementById('areaSec').textContent=S.month==='all'?'Jan–Mei 2026':(MFULL[S.month]||'');
+  document.getElementById('areaSec').textContent=S.month==='all'?buildRangeLabel():(MFULL[S.month]||'');
   document.getElementById('areaCards').innerHTML=ad.map(a=>{
     const sel=S.area===a.name;
     const col=a.name==='East'?'#185FA5':'#0F6E56';
@@ -1249,7 +1256,7 @@ function renderSP(){
   const byS=[...sp].sort((a,b)=>b.sales-a.sales).slice(0,10);
   const byM=[...sp].sort((a,b)=>b.margin-a.margin).slice(0,10);
   const ms=byS[0]?.sales||1, mm=byM[0]?.margin||1;
-  document.getElementById('spSec').textContent=S.month==='all'?'Jan–Mei 2026':(MFULL[S.month]||'');
+  document.getElementById('spSec').textContent=S.month==='all'?buildRangeLabel():(MFULL[S.month]||'');
   document.getElementById('spSale').innerHTML=byS.map((s,i)=>{
     const pct=(s.sales/ms*100).toFixed(1);
     return`<div class="br" onclick='showSPDr(${JSON.stringify(s)})' style="cursor:pointer">
@@ -1412,7 +1419,7 @@ function showSPDr(sp){
   const tot=allSP.reduce((a,s)=>a+s.sales,0);
   const totM=allSP.reduce((a,s)=>a+s.margin,0);
   const mRate=sp.sales>0?(sp.margin/sp.sales*100).toFixed(2):0;
-  showDr(sp.name,`Salesperson · ${sp.area} · ${S.month==='all'?'Jan–Mei 2026':MFULL[S.month]}`,
+  showDr(sp.name,`Salesperson · ${sp.area} · ${S.month==='all'?buildRangeLabel():MFULL[S.month]}`,
     `<div class="dg2">
       <div class="ds"><div class="ds-l">Total Sales</div><div class="ds-v" style="color:var(--blue)">${fM(sp.sales)}</div></div>
       <div class="ds"><div class="ds-l">Total Margin</div><div class="ds-v" style="color:var(--teal)">${fM(sp.margin)}</div></div>
@@ -1464,7 +1471,7 @@ function buildCatCustDrTable(catName){
     }).join('')}</tbody></table></div>`;
 }
 function catCustDrSub(catName){
-  const period=S.month==='all'?'Jan–Mei 2026':MFULL[S.month];
+  const period=S.month==='all'?buildRangeLabel():MFULL[S.month];
   const areaLbl=S.area==='all'?'Semua Area':S.area;
   return`Top 5 Customer · ${period} · ${areaLbl}`;
 }
@@ -1479,7 +1486,7 @@ function showCatCustDr(catName){
 }
 function showCustDr(c){
   const mRate=c.sales>0?(c.margin/c.sales*100).toFixed(2):0;
-  showDr(c.name,`Customer · ${S.month==='all'?'Jan–Mei 2026':MFULL[S.month]}`,
+  showDr(c.name,`Customer · ${S.month==='all'?buildRangeLabel():MFULL[S.month]}`,
     `<div class="dg2">
       <div class="ds"><div class="ds-l">Total Sales</div><div class="ds-v" style="color:var(--blue)">${fM(c.sales)}</div></div>
       <div class="ds"><div class="ds-l">Total Margin</div><div class="ds-v" style="color:var(--teal)">${fM(c.margin)}</div></div>
@@ -1524,8 +1531,11 @@ function renderForecast(){
   if(!show)return;
 
   const fc=getFcArea();
-  const apr=18182236082;
-  const vsApr=((fc.forecast_sales/apr-1)*100).toFixed(1);
+  // Compare vs previous month dynamically
+  const curIdx=MONTHS.indexOf(CURRENT_MONTH);
+  const prevMonth=curIdx>0?MONTHS[curIdx-1]:null;
+  const prevSales=prevMonth?(S.area==='all'?MONTHLY_ALL:S.area==='East'?MONTHLY_EAST:MONTHLY_WEST).find(m=>m.month===prevMonth)?.sales||0:0;
+  const vsApr=prevSales>0?((fc.forecast_sales/prevSales-1)*100).toFixed(1):null;
   const vsAprCol=vsApr>0?'rgba(255,255,255,.9)':'rgba(255,200,180,.9)';
 
   const fcMonthLabel=(MFULL[CURRENT_MONTH]||CURRENT_MONTH)+' '+(CURRENT_MONTH?CURRENT_MONTH.split('-')[0]:'');
@@ -1538,7 +1548,8 @@ function renderForecast(){
   document.getElementById('fcActMargin').textContent=fM(fc.actual_margin);
   document.getElementById('fcTotalMargin').textContent=fM(fc.forecast_margin);
   document.getElementById('fcProgLbl').textContent=`Progress: ${fc.days_done} dari ${fc.days_total} hari kerja`;
-  document.getElementById('fcVsApr').innerHTML=`vs Apr: <span style="color:${vsAprCol};font-weight:700">${vsApr>0?'+':''}${vsApr}%</span>`;
+  const prevLabel=prevMonth?MLABELS[prevMonth]:'Bln Lalu';
+  document.getElementById('fcVsApr').innerHTML=vsApr!==null?`vs ${prevLabel}: <span style="color:${vsAprCol};font-weight:700">${vsApr>0?'+':''}${vsApr}%</span>`:'';
   document.getElementById('fcProgFill').style.width=fc.pct_done+'%';
 
   // Area cards
