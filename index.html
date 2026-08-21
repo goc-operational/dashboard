@@ -315,18 +315,18 @@ tr.sel td{background:var(--bluel);}
     <div class="mc-sub" id="mv-mpct">—% rate</div>
     <span class="badge" style="background:#d4f2e7;color:#0F6E56" id="mv-mbadge">—</span>
   </div>
-  <div class="mc">
+  <div class="mc" id="mcIfDone" style="cursor:pointer" onclick="showIfDoneMoMDr()">
     <div class="mc-ico" style="background:#fff0d0"><svg viewBox="0 0 24 24" fill="none" stroke="#8a5500" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
     <div class="mc-lbl">IF Done</div>
     <div class="mc-val" id="mv-ifdone">—</div>
     <div class="mc-sub">delivery selesai</div>
     <span class="badge" style="background:#fff0d0;color:#8a5500">IF Done</span>
   </div>
-  <div class="mc">
+  <div class="mc" id="mcIfDays" style="cursor:pointer" onclick="showAvgIfMoMDr()">
     <div class="mc-ico" style="background:#fde8e8"><svg viewBox="0 0 24 24" fill="none" stroke="#A32D2D" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
     <div class="mc-lbl">Avg IF Days</div>
     <div class="mc-val" id="mv-ifdays">—</div>
-    <div class="mc-sub">rata-rata lead time</div>
+    <div class="mc-sub" id="mv-ifdays-sub">vs target</div>
     <span class="badge" style="background:#fde8e8;color:#A32D2D">Lead Time</span>
   </div>
   <div class="mc">
@@ -349,6 +349,17 @@ tr.sel td{background:var(--bluel);}
     <tbody id="ytdBody"></tbody>
   </table></div>
   <div class="ytd-legend" id="ytdLegend"></div>
+</div>
+
+<!-- YTD ACHIEVEMENT CHART -->
+<div class="card" style="margin-bottom:12px;">
+  <div class="ct">Achievement vs Growth — <span id="achSec">2026</span></div>
+  <div class="cs">Bar = Achievement bulanan (Rp) · Line = Growth MoM (%) · klik bar untuk lihat detail growth</div>
+  <div style="position:relative;width:100%;height:220px;"><canvas id="chartYtdAch" role="img" aria-label="Achievement dan growth bulanan">Achievement vs growth.</canvas></div>
+  <div class="ml">
+    <div class="ml-i"><span class="ml-d" style="background:#1D9E75"></span>Achievement</div>
+    <div class="ml-i"><span class="ml-d" style="background:#D85A30;border-radius:50%"></span>Growth MoM (%)</div>
+  </div>
 </div>
 
 <!-- MONTHLY TREND -->
@@ -1236,7 +1247,106 @@ function renderMetrics(){
   document.getElementById('mv-mbadge').textContent=parseFloat(mPct)>8?'↑ Good':'Monitor';
   document.getElementById('mv-ifdone').textContent=fN(ifd);
   document.getElementById('mv-ifdays').textContent=avgIF+' hari';
+  const diff=avgIFraw-TARGET_IF_DAYS;
+  const diffEl=document.getElementById('mv-ifdays-sub');
+  diffEl.textContent=(diff<=0?'−':'+')+Math.abs(diff).toFixed(1)+' hari vs target '+TARGET_IF_DAYS;
+  diffEl.style.color=diff<=0?'var(--teal)':'var(--red)';
   document.getElementById('mv-sp').textContent=sp.length;
+}
+
+/* ═══ MoM POPUP: IF Done & Avg IF Days ═══ */
+const TARGET_IF_DAYS=4;
+function getCurPrevMonth(){
+  const curMo=S.month==='all'?MONTHS[MONTHS.length-1]:S.month;
+  const idx=MONTHS.indexOf(curMo);
+  const prevMo=idx>0?MONTHS[idx-1]:null;
+  return {curMo,prevMo};
+}
+function getYTDMonths(mo){
+  const [yr,m]=mo.split('-');
+  const out=[];
+  for(let i=1;i<=Number(m);i++) out.push(yr+'-'+String(i).padStart(2,'0'));
+  return out;
+}
+function showIfDoneMoMDr(){
+  const src=S.area==='East'?MONTHLY_EAST:S.area==='West'?MONTHLY_WEST:MONTHLY_ALL;
+  const {curMo,prevMo}=getCurPrevMonth();
+  const curVal=(src.find(d=>d.month===curMo)||{}).orders||0;
+  const prevVal=prevMo?((src.find(d=>d.month===prevMo)||{}).orders||0):0;
+  const grow=prevVal>0?((curVal/prevVal-1)*100):null;
+  const col=grow===null?'var(--text3)':(grow>=0?'var(--teal)':'var(--red)');
+
+  // ── YTD: total fulfillment (IF Done) & growth vs YTD tahun lalu ──
+  const [curYr]=curMo.split('-');
+  const prevYr=String(Number(curYr)-1);
+  const ytdMonths=getYTDMonths(curMo);
+  const ytdTotal=ytdMonths.reduce((s,mk)=>s+((src.find(d=>d.month===mk)||{}).orders||0),0);
+  const ytdMonthsPrev=ytdMonths.map(mk=>prevYr+'-'+mk.split('-')[1]);
+  const ytdTotalPrev=ytdMonthsPrev.reduce((s,mk)=>s+((src.find(d=>d.month===mk)||{}).orders||0),0);
+  const ytdGrow=ytdTotalPrev>0?((ytdTotal/ytdTotalPrev-1)*100):null;
+  const ytdCol=ytdGrow===null?'var(--text3)':(ytdGrow>=0?'var(--teal)':'var(--red)');
+
+  showDr(`IF Done — ${MFULL[curMo]||curMo}`,`${S.area==='all'?'Semua Area':S.area} · dibanding bulan lalu`,
+    `<div class="dg2">
+      <div class="ds"><div class="ds-l">IF Done</div><div class="ds-v" style="color:#8a5500">${fN(curVal)}</div><div class="ds-s">${MFULL[curMo]||curMo}</div></div>
+      <div class="ds"><div class="ds-l">Growth vs Bulan Lalu</div><div class="ds-v" style="color:${col}">${grow===null?'—':(grow>=0?'↑':'↓')+Math.abs(grow).toFixed(1)+'%'}</div><div class="ds-s">${prevVal>0?fN(prevVal)+' delivery':'Tidak ada data'}${prevMo?' ('+(MFULL[prevMo]||prevMo)+')':''}</div></div>
+    </div>
+    <div class="dr-row"><span>Total Fulfillment YTD (Jan–${MLABELS[curMo]||curMo.split('-')[1]} ${curYr})</span><span style="font-weight:600">${fN(ytdTotal)} delivery</span></div>
+    <div class="dr-row"><span>Growth YTD vs ${prevYr}</span><span style="font-weight:700;color:${ytdCol}">${ytdGrow===null?'— (tidak ada data '+prevYr+')':(ytdGrow>=0?'↑':'↓')+Math.abs(ytdGrow).toFixed(1)+'%'}</span></div>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.3px">Rincian per Bulan</div>
+    ${ytdMonths.map((mk,i)=>{
+      const v=(src.find(d=>d.month===mk)||{}).orders||0;
+      const pv=i>0?((src.find(d=>d.month===ytdMonths[i-1])||{}).orders||0):0;
+      const g=i>0&&pv>0?((v/pv-1)*100):null;
+      const gc=g===null?'var(--text3)':(g>=0?'var(--teal)':'var(--red)');
+      return `<div class="dr-row"><span>${MFULL[mk]||mk}${mk===curMo?' <span style="color:var(--text3)">(bulan ini)</span>':''}</span><span>${fN(v)} delivery${g!==null?` <span style="color:${gc};font-weight:600">(${g>=0?'↑':'↓'}${Math.abs(g).toFixed(1)}%)</span>`:''}</span></div>`;
+    }).join('')}`);
+}
+function showAvgIfMoMDr(){
+  const {curMo,prevMo}=getCurPrevMonth();
+  const curVal=AVGIF[curMo+'_'+S.area]!=null?AVGIF[curMo+'_'+S.area]:0;
+  const prevVal=prevMo&&AVGIF[prevMo+'_'+S.area]!=null?AVGIF[prevMo+'_'+S.area]:null;
+  const grow=(prevVal!=null&&prevVal>0)?((curVal/prevVal-1)*100):null;
+  // avgIF makin kecil makin baik (lead time lebih cepat); target = maksimal, lewat target = tidak memenuhi KPI
+  const col=grow===null?'var(--text3)':(grow<=0?'var(--teal)':'var(--red)');
+  const meetsKpi=curVal<=TARGET_IF_DAYS;
+  const kpiCol=meetsKpi?'var(--teal)':'var(--red)';
+  const diffTgt=curVal-TARGET_IF_DAYS;
+
+  // ── YTD: rata-rata avg IF & growth vs YTD tahun lalu, plus total fulfillment (IF Done) YTD ──
+  const src=S.area==='East'?MONTHLY_EAST:S.area==='West'?MONTHLY_WEST:MONTHLY_ALL;
+  const [curYr]=curMo.split('-');
+  const prevYr=String(Number(curYr)-1);
+  const ytdMonths=getYTDMonths(curMo);
+  const ytdVals=ytdMonths.map(mk=>AVGIF[mk+'_'+S.area]).filter(v=>v!=null);
+  const ytdAvg=ytdVals.length?ytdVals.reduce((a,b)=>a+b,0)/ytdVals.length:null;
+  const ytdMonthsPrev=ytdMonths.map(mk=>prevYr+'-'+mk.split('-')[1]);
+  const ytdValsPrev=ytdMonthsPrev.map(mk=>AVGIF[mk+'_'+S.area]).filter(v=>v!=null);
+  const ytdAvgPrev=ytdValsPrev.length?ytdValsPrev.reduce((a,b)=>a+b,0)/ytdValsPrev.length:null;
+  const ytdGrow=(ytdAvg!=null&&ytdAvgPrev!=null&&ytdAvgPrev>0)?((ytdAvg/ytdAvgPrev-1)*100):null;
+  const ytdCol=ytdGrow===null?'var(--text3)':(ytdGrow<=0?'var(--teal)':'var(--red)');
+  const ytdTotalFulfill=ytdMonths.reduce((s,mk)=>s+((src.find(d=>d.month===mk)||{}).orders||0),0);
+
+  showDr(`Avg IF Days — ${MFULL[curMo]||curMo}`,`${S.area==='all'?'Semua Area':S.area} · dibanding bulan lalu`,
+    `<div class="dg2">
+      <div class="ds"><div class="ds-l">Avg IF Days</div><div class="ds-v" style="color:#A32D2D">${curVal.toFixed(1)} hari</div><div class="ds-s">${MFULL[curMo]||curMo}</div></div>
+      <div class="ds"><div class="ds-l">Growth vs Bulan Lalu</div><div class="ds-v" style="color:${col}">${grow===null?'—':(grow>=0?'↑':'↓')+Math.abs(grow).toFixed(1)+'%'}</div><div class="ds-s">${prevVal!=null?prevVal.toFixed(1)+' hari':'Tidak ada data'}${prevMo?' ('+(MFULL[prevMo]||prevMo)+')':''}</div></div>
+    </div>
+    <div class="dr-row"><span>Target (maksimal)</span><span style="font-weight:600">${TARGET_IF_DAYS} hari</span></div>
+    <div class="dr-row"><span>Status KPI</span><span style="font-weight:700;color:${kpiCol}">${meetsKpi?'✓ Memenuhi KPI':'⚠ Tidak Memenuhi KPI'} (${diffTgt<=0?'−':'+'}${Math.abs(diffTgt).toFixed(1)} hari)</span></div>
+    <div class="dr-row"><span>Avg IF Days YTD (Jan–${MLABELS[curMo]||curMo.split('-')[1]} ${curYr})</span><span style="font-weight:600">${ytdAvg!=null?ytdAvg.toFixed(1)+' hari':'—'}</span></div>
+    <div class="dr-row"><span>Growth YTD vs ${prevYr}</span><span style="font-weight:700;color:${ytdCol}">${ytdGrow===null?'— (tidak ada data '+prevYr+')':(ytdGrow>=0?'↑':'↓')+Math.abs(ytdGrow).toFixed(1)+'%'}</span></div>
+    <div class="dr-row"><span>Total Fulfillment YTD</span><span style="font-weight:600">${fN(ytdTotalFulfill)} delivery</span></div>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.3px">Rincian per Bulan</div>
+    ${ytdMonths.map((mk,i)=>{
+      const v=AVGIF[mk+'_'+S.area];
+      const pv=i>0?AVGIF[ytdMonths[i-1]+'_'+S.area]:null;
+      const g=(v!=null&&pv!=null&&pv>0)?((v/pv-1)*100):null;
+      const gc=g===null?'var(--text3)':(g<=0?'var(--teal)':'var(--red)');
+      const kpiOk=v!=null&&v<=TARGET_IF_DAYS;
+      const fulfill=(src.find(d=>d.month===mk)||{}).orders||0;
+      return `<div class="dr-row"><span>${MFULL[mk]||mk}${mk===curMo?' <span style="color:var(--text3)">(bulan ini)</span>':''}</span><span>${v!=null?v.toFixed(1)+' hari':'—'} <span style="color:${v!=null?(kpiOk?'var(--teal)':'var(--red)'):'var(--text3)'}">${v!=null?(kpiOk?'✓':'⚠'):''}</span>${g!==null?` <span style="color:${gc};font-weight:600">(${g>=0?'↑':'↓'}${Math.abs(g).toFixed(1)}%)</span>`:''} <span style="color:var(--text3)">· ${fN(fulfill)} delivery</span></span></div>`;
+    }).join('')}`);
 }
 
 function renderCatSale(){
@@ -1630,6 +1740,82 @@ function renderYTD(){
   document.getElementById('ytdLegend').innerHTML = lgd + note;
 }
 
+function buildYtdChart(){
+  const canvas = document.getElementById('chartYtdAch');
+  if(!canvas) return;
+
+  const monthly = S.area==='all'?MONTHLY_ALL:(S.area==='East'?MONTHLY_EAST:MONTHLY_WEST);
+
+  // Group by year -> month -> sales (Rupiah asli)
+  const byYear = {};
+  monthly.forEach(m => {
+    const [yr, mo] = m.month.split('-');
+    if(!byYear[yr]) byYear[yr] = {};
+    byYear[yr][mo] = m.sales;
+  });
+
+  const years = Object.keys(byYear).sort();
+  if(years.length === 0){ mkChart('chartYtdAch',{type:'bar',data:{labels:[],datasets:[]}}); return; }
+
+  const latestYear = years[years.length - 1];
+  // Ikuti filter tahun: pakai tahun terpilih jika ada & tersedia datanya, else tahun terbaru
+  const achYear = (S.year!=='all' && byYear[S.year]) ? S.year : latestYear;
+
+  document.getElementById('achSec').textContent = achYear;
+
+  // Lookup datar lintas tahun untuk growth MoM (Jan dibanding Des tahun sebelumnya)
+  const flat = {};
+  monthly.forEach(m => { flat[m.month] = m.sales; });
+
+  const achVals = YTD_MONTH_KEYS.map(mo => (byYear[achYear]||{})[mo] || 0);
+  const prevVals = YTD_MONTH_KEYS.map(mo => {
+    const prevKey = mo==='01' ? (Number(achYear)-1)+'-12' : achYear+'-'+String(Number(mo)-1).padStart(2,'0');
+    return flat[prevKey] || 0;
+  });
+  const growVals = YTD_MONTH_KEYS.map((mo,i) => {
+    if(prevVals[i]<=0 || achVals[i]<=0) return null;
+    return ((achVals[i]/prevVals[i] - 1) * 100);
+  });
+
+  const monthKeys = YTD_MONTH_KEYS.map(mo => achYear+'-'+mo);
+
+  mkChart('chartYtdAch',{
+    type:'bar',
+    data:{
+      labels:YTD_MONTH_ID,
+      datasets:[
+        {label:'Achievement',data:achVals,backgroundColor:achVals.map((v,i)=>v>0&&S.month===monthKeys[i]?'#0F6E56':(v>0?'#1D9E75':GC)),borderRadius:5,borderSkipped:false,order:2,yAxisID:'y'},
+        {type:'line',label:'Growth MoM',data:growVals,borderColor:'#D85A30',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#D85A30',fill:false,tension:0.35,spanGaps:true,order:1,yAxisID:'y2'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{
+        x:{grid:{color:GC},ticks:{color:TC,font:{size:11}}},
+        y:{grid:{color:GC},ticks:{color:TC,font:{size:11},callback:v=>'Rp'+fB(v)},position:'left'},
+        y2:{grid:{display:false},ticks:{color:'#D85A30',font:{size:11},callback:v=>v.toFixed(0)+'%'},position:'right'}
+      },
+      onClick(_,items){if(!items.length)return;const idx=items[0].index;if(achVals[idx]<=0)return;showAchDetail(idx,achYear,achVals,prevVals,growVals,monthKeys);},
+      onHover(_,items){canvas.style.cursor=items.length&&achVals[items[0].index]>0?'pointer':'default';}
+    }
+  });
+}
+
+function showAchDetail(idx,achYear,achVals,prevVals,growVals,monthKeys){
+  const lbl=YTD_MONTH_ID[idx];
+  const prevMo=idx===0?'Des':YTD_MONTH_ID[idx-1];
+  const prevYrLbl=idx===0?(Number(achYear)-1):achYear;
+  const val=achVals[idx], prev=prevVals[idx], grow=growVals[idx];
+  const col=grow===null?'var(--text3)':(grow>=0?'var(--teal)':'var(--red)');
+  showDr(`Achievement — ${lbl} ${achYear}`,`${S.area==='all'?'Semua Area':S.area} · dibanding ${prevMo} ${prevYrLbl}`,
+    `<div class="dg2">
+      <div class="ds"><div class="ds-l">Achievement</div><div class="ds-v" style="color:var(--tealm)">${fM(val)}</div><div class="ds-s">${lbl} ${achYear}</div></div>
+      <div class="ds"><div class="ds-l">Growth vs Bulan Lalu</div><div class="ds-v" style="color:${col}">${grow===null?'—':(grow>=0?'↑':'↓')+Math.abs(grow).toFixed(1)+'%'}</div><div class="ds-s">${prev>0?fM(prev):'Tidak ada data'} (${prevMo} ${prevYrLbl})</div></div>
+    </div>`);
+  filterMonth(monthKeys[idx]);
+}
+
 function filterMonth(monthKey){
   const sel=document.getElementById('selMonth');
   if(!sel)return;
@@ -1644,6 +1830,7 @@ function filterMonth(monthKey){
 function renderAll(){
   renderMetrics();
   renderYTD();
+  buildYtdChart();
   renderCatSale();
   renderCatMargin();
   renderAreaCards();
