@@ -459,6 +459,14 @@ tr.sel td{background:var(--bluel);}
 </div>
 
 
+<!-- SUPPLIER -->
+<p class="sec">🚚 Pencapaian Supplier — <span id="supplierSec">Semua Bulan</span></p>
+<div class="card" style="margin-bottom:12px;">
+  <div class="ct">Top 15 Supplier — Sales, Margin & Kategori</div>
+  <div class="cs">Dari sheet "proc", dicocokkan via nomor_if ↔ refference · Klik baris untuk rincian kategori</div>
+  <div class="tw"><table><thead><tr><th></th><th>Supplier</th><th style="text-align:right">Sales</th><th style="text-align:right">Margin</th><th style="text-align:right">Rate</th><th style="text-align:right">IF Done</th></tr></thead><tbody id="supplierTbody"></tbody></table></div>
+</div>
+
 <!-- FORECAST -->
 <p class="sec" id="fcSec" style="margin-top:24px">🔮 Forecast Bulan Berjalan — <span id="fcSecLabel">2026</span></p>
 
@@ -547,6 +555,9 @@ tr.sel td{background:var(--bluel);}
 const SHEET_ID = '1DkcMSZGlLdGPXgT9JQpgISLGJk9JVJGR3CAxDHTXrc8';
 const SHEET_GID = '1512377542';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6e-nXhwPpUELB7fxFSuu5PMgPKUVAovn3TALfoeEn-iIeXK1FSJjsSimMY5r0n-eU/exec';
+// URL Web App Apps Script BARU khusus sheet "proc" (lihat file Supplier_Report_AppsScript.gs)
+// Ganti PASTE_URL_DISINI dengan URL hasil deploy Web App proc.
+const PROC_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz6c8y7GnH2mgPgXlAXZvCSthb7i6_Nc20iSu2xg001Jm1hvd52-0RaoraSz4GmBbbr/exec';
 
 // ── FALLBACK DATA (hardcoded, used if fetch fails) ──
 /* ═══ DATA ═══ */
@@ -584,6 +595,7 @@ function shortCat(n){return n&&n.includes(':')?n.split(':').pop().trim():n;}
 
 // ── LIVE DATA (will be populated from Google Sheets) ──
 let MONTHLY_ALL, MONTHLY_EAST, MONTHLY_WEST, DAILY, CAT, SP, AREA_DATA, CUST, CUST_CAT, MONTHS, FC_AREA, FC_CAT, CURRENT_MONTH, AVGIF, MLABELS, MFULL;
+let SUPPLIER, SUPPLIER_CAT, RAW_ROWS;
 
 function useFallback() {
   MONTHLY_ALL = FB_MONTHLY_ALL;
@@ -645,6 +657,43 @@ async function fetchSheetData() {
   } catch(e) {
     throw new Error('Gagal fetch dari Apps Script: ' + (e.message || e));
   }
+}
+
+// ── FETCH SHEET "proc" (untuk laporan supplier) ──
+// Format respons sama seperti APPS_SCRIPT_URL: {status, headers, rows}
+async function fetchProcData() {
+  if (!PROC_APPS_SCRIPT_URL || !PROC_APPS_SCRIPT_URL.startsWith('https://')) return null;
+  try {
+    const res = await fetch(PROC_APPS_SCRIPT_URL, {redirect: 'follow'});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.error || 'Response proc tidak valid');
+    return json;
+  } catch(e) {
+    console.warn('Gagal fetch sheet proc:', e.message || e);
+    return null;
+  }
+}
+
+// Bangun peta nomor_if -> supplier dari sheet "proc"
+// (join: proc.nomor_if === data.refference)
+function buildProcMap(procTable) {
+  const map = {};
+  if (!procTable || !procTable.rows) return map;
+  const headers = procTable.headers || [];
+  let supplierIdx, nomorIfIdx;
+  headers.forEach((h, i) => {
+    const label = (typeof h === 'string' ? h : (h.label || h.id || '')).toLowerCase().trim();
+    if (label === 'supplier') supplierIdx = i;
+    if (label === 'nomor_if') nomorIfIdx = i;
+  });
+  if (supplierIdx === undefined || nomorIfIdx === undefined) return map;
+  procTable.rows.forEach(rowObj => {
+    const nomorIf = (rowObj[headers[nomorIfIdx]] || '').toString().trim();
+    const supplier = (rowObj[headers[supplierIdx]] || '').toString().trim();
+    if (nomorIf && supplier && !map[nomorIf]) map[nomorIf] = supplier;
+  });
+  return map;
 }
 
 // Map exact column names from Apps Script response
@@ -959,10 +1008,63 @@ function aggregateData(rows) {
 }
 
 
+// Agregasi laporan supplier: sales/margin/IF Done per supplier, dan per supplier x kategori
+// Join: baris data (r.ref = refference) dicocokkan ke procMap (nomor_if -> supplier)
+function aggregateSupplierData(rows, procMap) {
+  const monthSet = new Set(rows.map(r => r.monthKey));
+  const months = [...monthSet].sort();
+  const allAreaKeys = ['all','East','West'];
+  const filterRows = (m, a) => rows.filter(r =>
+    (m === 'all' || r.monthKey === m) &&
+    (a === 'all' || r.area === a)
+  );
+  const supplierOf = r => procMap[r.ref] || 'Tanpa Data Vendor';
+
+  const supplier = {};
+  const supplierCat = {};
+  months.forEach(m => {
+    allAreaKeys.forEach(a => {
+      const key = `${m}_${a}`;
+      const filtered = filterRows(m, a);
+
+      const supMap = {};
+      const byCat = {};
+      filtered.forEach(r => {
+        const sup = supplierOf(r);
+        if (!supMap[sup]) supMap[sup] = {name: sup, sales: 0, margin: 0};
+        supMap[sup].sales += r.sales;
+        supMap[sup].margin += r.margin;
+        if (!supMap[sup]._refs) supMap[sup]._refs = new Set();
+        supMap[sup]._refs.add(r.ref);
+
+        if (!byCat[sup]) byCat[sup] = {};
+        if (!byCat[sup][r.category]) byCat[sup][r.category] = {name: r.category, sales: 0, margin: 0};
+        byCat[sup][r.category].sales += r.sales;
+        byCat[sup][r.category].margin += r.margin;
+        if (!byCat[sup][r.category]._refs) byCat[sup][r.category]._refs = new Set();
+        byCat[sup][r.category]._refs.add(r.ref);
+      });
+
+      supplier[key] = Object.values(supMap)
+        .map(s => ({...s, ifDone: s._refs ? s._refs.size : 0}))
+        .sort((a,b) => b.sales-a.sales).slice(0, 15);
+
+      supplierCat[key] = {};
+      Object.keys(byCat).forEach(supName => {
+        supplierCat[key][supName] = Object.values(byCat[supName])
+          .map(c => ({...c, ifDone: c._refs ? c._refs.size : 0}))
+          .sort((a,b) => b.sales-a.sales);
+      });
+    });
+  });
+
+  return { SUPPLIER: supplier, SUPPLIER_CAT: supplierCat };
+}
+
 async function initDashboard() {
   try {
     document.getElementById('loadSub').textContent = 'Menghubungi Google Sheets...';
-    const table = await fetchSheetData();
+    const [table, procTable] = await Promise.all([fetchSheetData(), fetchProcData()]);
     document.getElementById('loadSub').textContent = 'Memproses & mengagregasi data...';
     
     const rows = parseRows(table); // table = {rows, headers} from Apps Script
@@ -992,6 +1094,12 @@ async function initDashboard() {
     AVGIF = data.AVGIF;
     MLABELS = data.MLABELS;
     MFULL = data.MFULL;
+    RAW_ROWS = rows;
+
+    const procMap = buildProcMap(procTable);
+    const supData = aggregateSupplierData(rows, procMap);
+    SUPPLIER = supData.SUPPLIER;
+    SUPPLIER_CAT = supData.SUPPLIER_CAT;
     
     // Update header info — gunakan lastModified dari Apps Script (sumber utama),
     // fallback ke tanggal delivery terbaru dari data jika lastModified tidak ada
@@ -1097,6 +1205,18 @@ function getCustByCat(catName){
   const map={};
   getFilteredMonths().forEach(m=>{const k=m+'_'+S.area;((CUST_CAT[k]&&CUST_CAT[k][catName])||[]).forEach(c=>{if(!map[c.name])map[c.name]={name:c.name,sales:0,margin:0,orders:0};map[c.name].sales+=c.sales;map[c.name].margin+=c.margin;map[c.name].orders+=c.orders;});});
   return Object.values(map).sort((a,b)=>b.sales-a.sales).slice(0,5);
+}
+function getSuppliers(){
+  if(S.month!=='all'){const k=S.month+'_'+S.area;return (SUPPLIER&&SUPPLIER[k])||[];}
+  const map={};
+  getFilteredMonths().forEach(m=>{const k=m+'_'+S.area;((SUPPLIER&&SUPPLIER[k])||[]).forEach(s=>{if(!map[s.name])map[s.name]={name:s.name,sales:0,margin:0,ifDone:0};map[s.name].sales+=s.sales;map[s.name].margin+=s.margin;map[s.name].ifDone+=s.ifDone;});});
+  return Object.values(map).sort((a,b)=>b.sales-a.sales).slice(0,15);
+}
+function getSupplierByCat(supName){
+  if(S.month!=='all'){const k=S.month+'_'+S.area;return (SUPPLIER_CAT&&SUPPLIER_CAT[k]&&SUPPLIER_CAT[k][supName])||[];}
+  const map={};
+  getFilteredMonths().forEach(m=>{const k=m+'_'+S.area;((SUPPLIER_CAT&&SUPPLIER_CAT[k]&&SUPPLIER_CAT[k][supName])||[]).forEach(c=>{if(!map[c.name])map[c.name]={name:c.name,sales:0,margin:0,ifDone:0};map[c.name].sales+=c.sales;map[c.name].margin+=c.margin;map[c.name].ifDone+=c.ifDone;});});
+  return Object.values(map).sort((a,b)=>b.sales-a.sales);
 }
 function getMonthlyData(){
   const src=S.area==='East'?MONTHLY_EAST:S.area==='West'?MONTHLY_WEST:MONTHLY_ALL;
@@ -1430,6 +1550,47 @@ function renderTable(){
       <td class="tb"><span style="background:${rb};color:${rc};padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700">${c.pct.toFixed(1)}%</span></td>
       <td class="tv">${fN(c.ifDone)}</td></tr>`;
   }).join('');
+}
+
+function renderSupplier(){
+  const sups=[...getSuppliers()];
+  document.getElementById('supplierSec').textContent=S.month==='all'?buildRangeLabel():(MFULL[S.month]||'');
+  const tbody=document.getElementById('supplierTbody');
+  if(!tbody)return;
+  if(sups.length===0){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px 0">Belum ada data — pastikan PROC_APPS_SCRIPT_URL sudah diisi</td></tr>';
+    return;
+  }
+  const tot=sups.reduce((a,s)=>a+s.sales,0);
+  tbody.innerHTML=sups.map((s,i)=>{
+    const rate=s.sales>0?(s.margin/s.sales*100):0;
+    const rb=rate>15?'#eaf3de':rate>8?'#fff0d0':'#ddeeff';
+    const rc=rate>15?'#2d6b0a':rate>8?'#8a5500':'#185FA5';
+    return`<tr onclick='showSupplierDr(${JSON.stringify(s.name)})'>
+      <td class="br-rk" style="width:20px">${i+1}</td>
+      <td class="tn">${s.name}</td>
+      <td class="tv">${fM(s.sales)}</td>
+      <td class="tv">${fM(s.margin)}</td>
+      <td class="tb"><span style="background:${rb};color:${rc};padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700">${rate.toFixed(1)}%</span></td>
+      <td class="tv">${fN(s.ifDone)}</td></tr>`;
+  }).join('');
+}
+
+function showSupplierDr(supName){
+  const s=getSuppliers().find(x=>x.name===supName)||{name:supName,sales:0,margin:0,ifDone:0};
+  const cats=getSupplierByCat(supName);
+  const rate=s.sales>0?(s.margin/s.sales*100).toFixed(2):0;
+  const rows=cats.map(c=>`<div class="dr-row"><span>${shortCat(c.name)}</span><span style="font-weight:600">${fM(c.sales)} <span style="color:var(--text3);font-weight:400">(${fN(c.ifDone)} IF)</span></span></div>`).join('');
+  showDr(supName,`Supplier · ${S.area==='all'?'Semua Area':S.area} · ${S.month==='all'?buildRangeLabel():MFULL[S.month]}`,
+    `<div class="dg2">
+      <div class="ds"><div class="ds-l">Total Sales</div><div class="ds-v" style="color:var(--blue)">${fM(s.sales)}</div></div>
+      <div class="ds"><div class="ds-l">Total Margin</div><div class="ds-v" style="color:var(--teal)">${fM(s.margin)}</div></div>
+    </div><div class="dg2">
+      <div class="ds"><div class="ds-l">Margin Rate</div><div class="ds-v">${rate}%</div></div>
+      <div class="ds"><div class="ds-l">IF Done</div><div class="ds-v">${fN(s.ifDone)}</div></div>
+    </div><div class="dd"></div>
+    <div class="dl">Pencapaian per Kategori</div>
+    ${rows || '<p style="font-size:12px;color:var(--text3)">Tidak ada rincian kategori</p>'}`);
 }
 
 function renderCatPills(){
@@ -1836,6 +1997,7 @@ function renderAll(){
   renderAreaCards();
   renderSP();
   renderTable();
+  renderSupplier();
   renderCatPills();
   renderSelInfo();
   renderForecast();
